@@ -92,7 +92,7 @@ for (item in correct){
 ```
 
 ```{r}
-path <- "models/wide/filter812/"
+path <- "models/wide/"
 # path <- "models/bindingDB/"
 pred <- read.csv(paste0(path,"predicted.txt"), header = FALSE)
 corr <- read.csv(paste0(path,"correct.txt"), header = FALSE)
@@ -128,12 +128,6 @@ plot <- ggplot(data=data, aes(x=Predicted, y=Experimental))+
           scale_y_continuous(expand=c(0,0), breaks=seq(round(min)-2, round(max)+1, 1), limits = c(min-1, max+1)) +
           labs(caption=paste("Correlation coefficient:",correlation),
                title = "WideDTA prediction on KIBA dataset")
-               # subtitle = "pIC50 (mM)")
-#           theme(axis.ticks.length = unit(-0.25 , "lines"),
-# 	              # axis.ticks.margin = unit(5 , "lines"),
-#                 axis.text.x = element_text(vjust = -.5),
-#                 axis.text.y = element_text(hjust = -.1))
-# plot(mirror.ticks(plot))
 plot
 ```
 
