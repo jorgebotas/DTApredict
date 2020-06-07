@@ -11,3 +11,7 @@
 #### Data:
  - KIBA dataset
  - [BindingDB](https://www.bindingdb.org/bind/index.jsp)
+
+#### System requirements
+- Python 3.x
+- Dependencies installable by executing `bash pips.sh`
