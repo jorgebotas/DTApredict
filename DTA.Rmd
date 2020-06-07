@@ -1,0 +1,240 @@
+---
+title: "Drug-Target affinity prediction"
+subtitle: "DeepDTA and WideDTA"
+output:
+  html_document:
+    df_print: paged
+    toc: true
+    toc_float: true
+    code_folding: show
+    theme: sandstone
+---
+
+
+
+
+## THEME
+```{r include=FALSE}
+require(ggplot2)
+whitetheme <- function() {
+  theme_bw()+theme(
+    plot.margin = margin(20,10,10,10),
+    text = element_text(family="Helvetica", colour="black", face="plain"),
+    
+    plot.title = element_text(size=13, face="bold"),
+    plot.subtitle = element_text(size=11, colour="black"),
+    plot.caption = element_text(size=9, colour="black"),
+    
+    
+    # PANEL
+    # panel.grid = element_blank(),
+    # panel.grid.major = element_line(colour = "gray", linetype = "dashed", size = 0.2),
+    panel.border = element_rect(fill=NA, colour = "black", size=1),
+    # panel.grid.major.y = element_line(colour = "gray", linetype = "dashed", size = 0.2),
+    
+    
+    
+    # LEGEND
+    # legend.position = "none",
+    legend.text = element_text(size=11),
+    # legend.background = element_rect(colour="grey"),
+    # legend.title = element_blank(),
+    # legend.key = element_rect(colour="grey"),
+    
+    #AXIS
+    axis.text.x=element_text(size=11, colour="black", face="plain"),
+    axis.text.y = element_text(size=11, colour="black", face="plain"),
+    axis.title.y = element_text(vjust=2),
+    axis.title.x = element_text(vjust=-0.5),
+    # axis.title.x = element_blank(),
+    # axis.ticks.x = element_blank()
+    
+    legend.title = element_blank(),
+    legend.position = "top",
+    legend.background = element_blank(),
+    panel.grid=element_blank(),
+    # panel.border = element_blank(),
+    axis.line = element_line(color="black", size=0.25)
+  )
+}
+
+```
+
+
+
+
+```{r}
+path <- "models/deep/"
+path <- "models/wide/"
+sep = " "
+
+path <- "models/bindingDB/"
+sep = ","
+corr = read.csv(paste0(path, "correct.csv"))$affinity
+
+
+predicted <- read.csv(paste0(path,"predicted.txt"), header = FALSE, sep = sep)
+
+predicted <- t(as.matrix(predicted))
+rows <- nrow(predicted)
+pred <- c()
+for (item in predicted){
+  pred <- c(pred, item)
+}
+pred <- pred[!is.na(pred)]
+correct <- read.csv(paste0(path, "correct.txt"), header = FALSE, sep = sep)
+correct <- t(as.matrix(correct))
+rows <- nrow(predicted)
+corr <- c()
+for (item in correct){
+  corr <- c(corr, item)
+}
+```
+
+```{r}
+path <- "models/wide/filter812/"
+# path <- "models/bindingDB/"
+pred <- read.csv(paste0(path,"predicted.txt"), header = FALSE)
+corr <- read.csv(paste0(path,"correct.txt"), header = FALSE)
+
+data <- as.data.frame(cbind(corr,pred))
+colnames(data) <- c("Experimental", "Predicted")
+
+summary(data$Experimental)
+summary(data$Predicted)
+
+
+correlation <- round(cor(data$Predicted, data$Experimental), 3)
+mse <- mean((data$Experimental - data$Predicted)^2)
+cat("Correlation coefficient:", correlation,"\n")
+cat("MSE", mse)
+
+
+write.csv(data, "cindex/wide_predictions.csv")
+```
+
+```{r}
+library(ggplot2)
+# require(remotes)
+# require(ggplotTicks)
+min = min(c(min(data$Experimental), min(data$Predicted)))
+max = max(c(max(data$Experimental), max(data$Predicted)))
+
+plot <- ggplot(data=data, aes(x=Predicted, y=Experimental))+
+          geom_point(color="#969696", size = 0.7)+
+          geom_abline(slope=1, linetype="dashed")+
+          whitetheme() +
+          scale_x_continuous(expand=c(0,0), breaks=seq(round(min)-2, round(max)+1, 1), limits = c(min-1, max+1))+
+          scale_y_continuous(expand=c(0,0), breaks=seq(round(min)-2, round(max)+1, 1), limits = c(min-1, max+1)) +
+          labs(caption=paste("Correlation coefficient:",correlation),
+               title = "WideDTA prediction on KIBA dataset")
+               # subtitle = "pIC50 (mM)")
+#           theme(axis.ticks.length = unit(-0.25 , "lines"),
+# 	              # axis.ticks.margin = unit(5 , "lines"),
+#                 axis.text.x = element_text(vjust = -.5),
+#                 axis.text.y = element_text(hjust = -.1))
+# plot(mirror.ticks(plot))
+plot
+```
+
+```{r}
+ggplot2::ggsave(filename = paste0(path, "bindingDB_pmM.tiff"),
+                plot = plot,
+                device = "tiff",
+                width = 15,
+                height =  10,
+                units = "cm")
+```
+
+
+
+
+```{r}
+library(stringr)
+path <- "data/bindingDB/"
+
+# binding <- read.csv(paste0(path,"BindingDB_BindingDB_Inhibition.tsv"), sep="\t")
+
+path <- paste0(path, "all/")
+binding <- read.csv(paste0(path, "BindingDB_All.tsv"), sep="\t")
+
+colnames(binding)
+nrow(binding[binding$Ki..nM. != "",])
+nrow(binding[binding$IC50..nM. != "",])
+nrow(binding[binding$Kd..nM. != "",])
+
+# binding$UniProt..SwissProt..Entry.Name.of.Target.Chain
+param = "IC50"
+
+affinity <- as.data.frame(binding$Ligand.SMILES, ncol=1)
+colnames(affinity) <- c("smiles")
+affinity$affinity <- binding[, paste0(param, "..nM.")]
+affinity$target <- binding$Target.Name.Assigned.by.Curator.or.DataSource
+affinity$uniprot <- binding$UniProt..SwissProt..Entry.Name.of.Target.Chain
+affinity$seq <- binding$BindingDB.Target.Chain..Sequence
+
+affinity <- affinity[affinity$affinity !="",]
+aff <- affinity
+nrow(aff)
+affinity <- affinity[str_detect(affinity$affinity, "<|>"), ]
+
+affinity$affinity <- sapply(affinity$affinity, function(x) str_remove(x, "<"))
+affinity$affinity <- sapply(affinity$affinity, function(x) str_remove(x, ">"))
+affinity$affinity <- as.numeric(affinity$affinity)
+affinity <- affinity[!affinity$affinity == 0, ]
+affinity$affinity <- -log(affinity$affinity)
+affinity$affinity <- affinity$affinity + 6 ###### IC50 in mM!!!!!
+affinity <- affinity[!affinity$seq == "NULL",]
+affinity <- affinity[!affinity$smiles == "NULL",]
+seq.length <- sapply(as.character(affinity$seq), nchar)
+affinity$seqlen <- seq.length
+
+reduced <- affinity[(affinity$seqlen < 1000), ]
+reduced <- reduced[reduced$seqlen > 50, ]
+
+uniq_seq <- unique(reduced$seq)
+uniq_name <- unique(reduced$target)
+length(uniq_name)
+length(uniq_seq)
+nsamples <- sapply(uniq_seq, function(u) nrow(reduced[reduced$seq == u, ]))
+names <- sapply(uniq_seq, function(u) unique(reduced[reduced$seq == u, ]$target))
+length(names)
+nsamp <- data.frame(names, uniq_seq, nsamples)
+nsamp <- nsamp[order(nsamp$nsamples, decreasing = TRUE),]
+
+nsamp
+```
+
+
+```{r}
+smi.length <- sapply(as.character(reduced$smiles), nchar)
+
+summary(reduced$affinity)
+
+n <- nrow(reduced)
+split <- sample(1:n, n*(5/6))
+
+training <- reduced[split, ]
+test <- reduced[-split, ]
+
+cat("Total samples: ", n, "\n")
+cat("Samples in training set: ", nrow(training), "\n")
+cat("Samples in test set: ", nrow(test), "\n")
+
+cat("Unique SMILES: ",length(unique(affinity$smiles)), "\n")
+cat("Unique sequences: ", length(unique(affinity$seq)), "\n")
+```
+```{r}
+write.csv(training, file=paste0(path,"rIC50_training.csv"))
+write.csv(test, file=paste0(path, "rIC50_test.csv"))
+```
+
+```{r}
+
+barplot(table(round(reduced$affinity)))
+
+barplot(table(reduced$seqlen))
+
+barplot(table(smi.length))
+
+```

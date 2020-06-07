@@ -1,0 +1,31 @@
+#!/bin/bash
+#SBATCH --partition=standard
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=40
+#SBATCH --mem=170000
+#SBATCH --output=deepDTA-%j.log
+#SBATCH --error=deepDTA-%j.err
+#SBATCH --time=120:00:00
+#SBATCH --mail-type=END
+#SBATCH --mail-user=jorge.botas.miret@alumnos.upm.es
+module load Python
+module load TensorFlow/1.8.0-intel-2018a-Python-3.6.4
+module load Keras/2.2.4-intel-2018a-Python-3.6.4
+srun pip install --user --upgrade pip
+srun pip install numpy --user
+srun pip install matplotlib --user
+srun pip install graphviz --user
+srun pip install sklearn --user
+srun pip install pydot --user
+srun pip install h5py --user
+srun pip install tensorflow --user
+srun python deepDTA.py \
+                          --batch_size 256 \
+                          --num_epoch 100 \
+                          --max_seq_len 1000 \
+                          --max_smi_len 100 \
+                          --dataset_path 'data/bindingDB/all' \
+                          --is_log 0 \
+                          --log_dir 'logs/' \
+			  --word_representation True
